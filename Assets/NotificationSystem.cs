@@ -5,6 +5,7 @@ using UnityEngine.UI;
 public class NotificationSystem : UiMovement
 {
     public Image iconObject;
+    public Sprite emptyIcon;
     public Text textObject;
 
     private IEnumerator refreshVisibility;
@@ -16,7 +17,8 @@ public class NotificationSystem : UiMovement
 
     public void Notify(Sprite icon, string textString)
     {
-        iconObject.sprite = icon;
+        if (icon) iconObject.sprite = icon;
+        else iconObject.sprite = emptyIcon;
         textObject.text = textString;
         StopCoroutine(refreshVisibility);
         refreshVisibility = RefreshVisibility();
@@ -28,7 +30,7 @@ public class NotificationSystem : UiMovement
         StopCoroutine(activeMovement);
         activeMovement = SmoothMove(GetComponent<RectTransform>().anchoredPosition, newPosition, movingFunction);
         StartCoroutine(activeMovement);
-        yield return new WaitForSeconds(3f);
+        yield return new WaitForSecondsRealtime(2f);
         StopCoroutine(activeMovement);
         activeMovement = SmoothMove(GetComponent<RectTransform>().anchoredPosition, defaultPosition, movingFunction);
         StartCoroutine(activeMovement);
