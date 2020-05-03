@@ -69,6 +69,7 @@
     <Compile Include="Assets\TalkingCat.cs" />
     <Compile Include="Assets\UiMovement.cs" />
     <None Include="Assets\Materials\CanvasShader.shader" />
+    <None Include="Assets\Materials\Cloud Shader 2.shader" />
     <Reference Include="UnityEngine">
       <HintPath>C:/Program Files/Unity/Hub/Editor/2019.3.12f1/Editor/Data/Managed/UnityEngine/UnityEngine.dll</HintPath>
     </Reference>

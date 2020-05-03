@@ -28,6 +28,7 @@ public class Player : MonoBehaviour
 
     public AudioSource chopin;
     public AudioSource krendelSound;
+    public AudioSource mainSound;
     public AudioClip[] krendelClips;
     public Light lampLight;
     public Color someColor;
@@ -36,6 +37,8 @@ public class Player : MonoBehaviour
     public Renderer flower2;
     public Color flowerGreen;
     public Color flowerYellow;
+    public Text scoreText;
+    public Text starvingText;
 
     private int eventId;
     private bool isUsed = false;
@@ -45,6 +48,8 @@ public class Player : MonoBehaviour
     private float millisecondsSpent = 0;
     private int secondsSpent = 0;
     private int minutesSpent = 0;
+
+    private float timeLeft = 30f;
 
     private int[,] movementMatrix =
             {//------     0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12
@@ -83,15 +88,24 @@ public class Player : MonoBehaviour
     private int questId = 0;
     private int questProgress = 0;
     private int[] questItems;
-    private int questAmount = 9;
+    private int questAmount = 10;
 
     private bool objective1 = false;
     private bool objective2 = false;
 
+    private int score = 0;
+
     private IEnumerator questEnumerator;
     private IEnumerator flowerColor;
 
-    private void flowersState(bool state)
+    private IEnumerator ReturnNormalSound()
+    {
+        mainSound.Stop();
+        yield return new WaitForSecondsRealtime(71f);
+        mainSound.Play();
+    }
+
+    private void FlowersState(bool state)
     {
         StopCoroutine(flowerColor);
         if (state)
@@ -103,6 +117,12 @@ public class Player : MonoBehaviour
             flowerColor = FlowerColor(flowerYellow);
         }
         StartCoroutine(flowerColor);
+    }
+
+    private void UpdateScore(int amount)
+    {
+        score += amount;
+        scoreText.text = score.ToString();
     }
 
     private IEnumerator FlowerColor(Color targetColor)
@@ -119,18 +139,19 @@ public class Player : MonoBehaviour
         flower2.material.color = targetColor;
     }
 
-    private void changeQuest()
+    private void ChangeQuest(int amount)
     {
+        UpdateScore(amount);
         oldTask.TranslateInstantly();
         oldQuestText.text = questText.text;
         oldQuestHeader.text = questHeader.text;
 
         StopCoroutine(questEnumerator);
-        questEnumerator = giveNewQuestYield();
+        questEnumerator = GiveNewQuestYield();
         StartCoroutine(questEnumerator);
     }
 
-    private IEnumerator giveNewQuestYield()
+    private IEnumerator GiveNewQuestYield()
     {
         yield return new WaitForSeconds(3f);
         giveNewQuest();
@@ -207,6 +228,14 @@ public class Player : MonoBehaviour
                 }
             case 7:
                 {
+                    questHeader.text = "Большая трапеза";
+                    questText.text = "○ Принести жареные сосиски и жареную рыбу";
+                    addItemToQuestInventory(10, 11);
+                    talkingCat.Say("Раб, я голоден. Принеси притовленную еду");
+                    break;
+                }
+            case 8:
+                {
                     questHeader.text = "Напоить кота";
                     questText.text = "○ Принести воды коту";
                     addItemToInventory(3, "Пустая миска", null);
@@ -214,7 +243,7 @@ public class Player : MonoBehaviour
                     hasMiska = true;
                     break;
                 }
-            case 8:
+            case 9:
                 {
                     questHeader.text = "Полить цветы";
                     questText.text = "○ Полить каждый цветок в доме";
@@ -223,7 +252,7 @@ public class Player : MonoBehaviour
                     hasKuvshin = true;
                     objective1 = false;
                     objective2 = false;
-                    flowersState(false);
+                    FlowersState(false);
                     break;
                 }
         }
@@ -242,6 +271,7 @@ public class Player : MonoBehaviour
                             questProgress++;
                             questText.text = "● Принести \"Механику аэрозолей\"" + '\n' + "○ Достать гаечный ключ и металлолом";
                             books[0] = 1;
+                            timeLeft += 10f;
                             talkingCat.Say("Пикатная книженция. Неси инструменты");
                             addItemToQuestInventory(12, 8);
                         }
@@ -260,6 +290,7 @@ public class Player : MonoBehaviour
                         {
                             questProgress++;
                             questText.text = "● Принести \"Механику аэрозолей\"" + '\n' + "● Достать гаечный ключ и металлолом" + '\n' + "○ Зарядить пушку сосисками";
+                            timeLeft += 15f;
                             talkingCat.Say("Нет патронов...");
                         }
                     }
@@ -268,8 +299,9 @@ public class Player : MonoBehaviour
                         if (takeItemFromInventory(1) || takeItemFromInventory(10))
                         {
                             questText.text = "● Принести \"Механику аэрозолей\"" + '\n' + "● Достать гаечный ключ и металлолом" + '\n' + "● Зарядить пушку сосисками";
+                            timeLeft += 8f;
                             talkingCat.Say("Теперь у оппозиции нет шансов");
-                            changeQuest();
+                            ChangeQuest(350);
                         }
                     }
                     break;
@@ -283,6 +315,7 @@ public class Player : MonoBehaviour
                             questProgress++;
                             objective1 = false;
                             questText.text = "● Найти кейс" + '\n' + "○ Оплатить счета";
+                            timeLeft += 8f;
                             talkingCat.Say("Чёрт! Это были счета. Оплати их");
                         }
                     }
@@ -292,6 +325,7 @@ public class Player : MonoBehaviour
                         {
                             questProgress++;
                             questText.text = "● Найти кейс" + '\n' + "● Оплатить счета" + '\n' + "○ Принести крендель";
+                            timeLeft += 12f;
                             talkingCat.Say("Как же я зол. Проверь крендели");
                         }
                     }
@@ -300,8 +334,9 @@ public class Player : MonoBehaviour
                         if (takeItemFromInventory(7))
                         {
                             questText.text = "● Найти кейс" + '\n' + "● Оплатить счета" + '\n' + "● Принести крендель";
+                            timeLeft += 8f;
                             talkingCat.Say("Проверил? Рад, что они все еще мертвы");
-                            changeQuest();
+                            ChangeQuest(150);
                         }
                     }
                     break;
@@ -329,8 +364,9 @@ public class Player : MonoBehaviour
                             "\"Теория функций комплексных переменных\"" + '\n' +
                             "\"Ядерные энергетические реакции\"" + '\n' +
                             "\"Тайна сибирского леса\"";
+                        timeLeft += 12f;
                         talkingCat.Say("Ты хороший раб, человек");
-                        changeQuest();
+                        ChangeQuest(150);
                     }
                     break;
                 }
@@ -351,6 +387,7 @@ public class Player : MonoBehaviour
                         {
                             questProgress++;
                             questText.text = "● Принести рулетку и гаечный ключ" + '\n' + "○ Принести \"Механику аэрозолей\"";
+                            timeLeft += 18f;
                             talkingCat.Say("Ничего не понимаю... Сгоняй за \"Механикой аэрозолей\"");
                         }
                     }
@@ -360,8 +397,9 @@ public class Player : MonoBehaviour
                         {
                             books[0] = 1;
                             questText.text = "● Принести рулетку и гаечный ключ" + '\n' + "● Принести \"Механику аэрозолей\"";
+                            timeLeft += 10f;
                             talkingCat.Say("Превосходно, человек, служи мне и дальше");
-                            changeQuest();
+                            ChangeQuest(450);
                         }
                     }
                     break;
@@ -374,6 +412,7 @@ public class Player : MonoBehaviour
                         {
                             questProgress++;
                             questText.text = "● Узнать координаты столицы Парижа" + '\n' + "○ Принести тапок";
+                            timeLeft += 8f;
                             talkingCat.Say("Отлично. Очень хочу его прихлопнуть");
                         }
                     }
@@ -383,6 +422,7 @@ public class Player : MonoBehaviour
                         {
                             questProgress++;
                             questText.text = "● Узнать координаты столицы Парижа" + '\n' + "● Принести тапок" + '\n' + "○ Найти и принести металлолом";
+                            timeLeft += 8f;
                             talkingCat.Say("Да не так! Неси металлолом");
                         }
                     }
@@ -391,8 +431,9 @@ public class Player : MonoBehaviour
                         if (takeItemFromInventory(8))
                         {
                             questText.text = "● Узнать координаты столицы Парижа" + '\n' + "● Принести тапок" + '\n' + "● Найти и принести металлолом";
+                            timeLeft += 8f;
                             talkingCat.Say("Ты принял верное решение служить мне, человек");
-                            changeQuest();
+                            ChangeQuest(150);
                         }
                     }
                     break;
@@ -414,28 +455,50 @@ public class Player : MonoBehaviour
                     if (questItems[0] == 0)
                     {
                         questText.text = "● Принести 3 кренделя";
+                        timeLeft += 12f;
                         talkingCat.Say("Хмм... Вроде ничего подозрительного");
-                        changeQuest();
+                        ChangeQuest(150);
                     }
                     break;
                 }
-            case 7: // Напоить кота
+            case 7:
+                {
+                    if (takeItemFromInventory(10))
+                    {
+                        takeItemFromQuestInventory(10);
+                    }
+                    if (takeItemFromInventory(11))
+                    {
+                        takeItemFromQuestInventory(11);
+                    }
+                    if (questItems[0] == 0)
+                    {
+                        questText.text = "● Принести жареные сосиски и жареную рыбу";
+                        timeLeft += 15f;
+                        talkingCat.Say("Ты сделал правильный выбор, человек");
+                        ChangeQuest(200);
+                    }
+                    break;
+                }
+            case 8: // Напоить кота
                 {
                     if (takeItemFromInventory(4))
                     {
                         hasMiska = false;
                         questText.text = "● Принести воды коту";
+                        timeLeft += 10f;
                         talkingCat.Say("Успех, я пью за себя!");
-                        changeQuest();
+                        ChangeQuest(50);
                     }
                     else if (takeItemFromInventory(17))
                     {
                         addItemToInventory(3, null, null);
+                        timeLeft -= 2f;
                         talkingCat.Say("Что за кошачью мочу ты мне подсунул?");
                     }
                     break;
                 }
-            case 8: // Полить цветы
+            case 9: // Полить цветы
                 {
                     if (questProgress == 0)
                     {
@@ -447,6 +510,7 @@ public class Player : MonoBehaviour
                             objective1 = false;
                             questProgress++;
                             questText.text = "● Полить каждый цветок в доме" + '\n' + "○ Играть на пианино, пока не позеленеют цветы";
+                            timeLeft += 12f;
                             talkingCat.Say("Поиграй на пианино, пока они не позеленеют");
                         }
                     }
@@ -454,8 +518,9 @@ public class Player : MonoBehaviour
                     {
                         if (objective1)
                         {
+                            timeLeft += 15f;
                             talkingCat.Say("Хоть что-то тебе можно доверить");
-                            changeQuest();
+                            ChangeQuest(350);
                         }
                     }
                     break;
@@ -463,15 +528,29 @@ public class Player : MonoBehaviour
         }
     }
 
+    private void GameOver()
+    {
+        Debug.Log("GO");
+    }
+
     private void UpdateTimer()
     {
         timeSpent += Time.deltaTime;
-        if (isPlayingPiano) pianoTimeSpent += Time.deltaTime;
-        if (questId == questAmount - 1 && questProgress == 1 && pianoTimeSpent >= 10 && objective1 == false)
+        timeLeft -= Time.deltaTime;
+        if (timeLeft <= 0)
         {
-            objective1 = true;
-            flowersState(true);
-            questText.text = "● Полить каждый цветок в доме" + '\n' + "● Играть на пианино, пока не позеленеют цветы";
+            GameOver();
+            timeLeft = 0;
+        }
+        if (isPlayingPiano)
+        {
+            pianoTimeSpent += Time.deltaTime;
+            if (questId == questAmount - 1 && questProgress == 1 && pianoTimeSpent >= 10 && objective1 == false)
+            {
+                objective1 = true;
+                FlowersState(true);
+                questText.text = "● Полить каждый цветок в доме" + '\n' + "● Играть на пианино, пока не позеленеют цветы";
+            }
         }
         millisecondsSpent += Time.deltaTime;
         if (millisecondsSpent >= 1)
@@ -485,6 +564,9 @@ public class Player : MonoBehaviour
             secondsSpent -= 60;
         }
         timeText.text = minutesSpent.ToString("D2") + ':' + secondsSpent.ToString("D2");
+
+        int sec = Mathf.FloorToInt(timeLeft);
+        starvingText.text = (sec / 60).ToString() + ':' + (sec % 60).ToString("D2");
     }
 
     private void Start()
@@ -500,7 +582,7 @@ public class Player : MonoBehaviour
         oldQuestText.text = "○ Найти кота в ванной и поговорить с ним.";
         questItems = new int[] { 0, 0, 0 };
 
-        questEnumerator = giveNewQuestYield();
+        questEnumerator = GiveNewQuestYield();
         flowerColor = FlowerColor(flowerGreen);
     }
 
@@ -807,6 +889,7 @@ public class Player : MonoBehaviour
                         lampLight.intensity = 3;
                         lampLight.spotAngle = 120;
                         lampLight.cookie = cookie;
+                        StartCoroutine(ReturnNormalSound());
                     }
                     krendelCount++;
                     break;
