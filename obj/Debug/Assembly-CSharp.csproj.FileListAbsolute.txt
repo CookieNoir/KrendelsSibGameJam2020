@@ -270,3 +270,5 @@ D:\SibGameJam2020\Krendels\obj\Debug\Assembly-CSharp.csproj.CoreCompileInputs.ca
 D:\SibGameJam2020\Krendels\obj\Debug\Assembly-CSharp.csproj.CopyComplete
 D:\SibGameJam2020\Krendels\obj\Debug\Assembly-CSharp.dll
 D:\SibGameJam2020\Krendels\obj\Debug\Assembly-CSharp.pdb
+D:\SibGameJam2020\Krendels\Temp\bin\Debug\Unity.2D.Sprite.Editor.dll
+D:\SibGameJam2020\Krendels\Temp\bin\Debug\Unity.2D.Sprite.Editor.pdb

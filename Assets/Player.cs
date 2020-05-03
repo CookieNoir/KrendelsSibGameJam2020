@@ -18,6 +18,13 @@ public class Player : MonoBehaviour
     public NotificationSystem notSystem;
     public Sprite emptyInventoryIcon;
     public Text timeText;
+    public TalkingCat talkingCat;
+    public Text questText;
+    public Text questHeader;
+
+    public UiMovement oldTask;
+    public Text oldQuestText;
+    public Text oldQuestHeader;
 
     public AudioSource chopin;
     public AudioSource krendelSound;
@@ -25,8 +32,11 @@ public class Player : MonoBehaviour
     public Light lampLight;
     public Color someColor;
     public Texture cookie;
+    public Renderer flower1;
+    public Renderer flower2;
+    public Color flowerGreen;
+    public Color flowerYellow;
 
-    private int taskId;
     private int eventId;
     private bool isUsed = false;
     private int[] itemsId;
@@ -44,8 +54,8 @@ public class Player : MonoBehaviour
             /*-3*/      {17, 0, 0, 8, 1, 1, 1, 1, 7, 0, 0, 9, 9},
             /*-4*/      { 1,17, 8, 1, 1,10, 1, 1, 0, 0, 0, 1, 1},
             /*-5*/      { 1, 1, 0, 0, 1, 8, 0, 0, 5, 1, 1, 1, 1},
-            /*-6*/      { 4, 0, 0,11, 1, 1, 1, 0, 0, 5, 0, 1, 1},
-            /*-7*/      { 1, 4, 0,12, 0, 0, 1, 0, 0, 0, 0, 1, 1},
+            /*-6*/      { 4, 0, 0,11, 1, 1, 1, 0, 0, 5,18, 1, 1},
+            /*-7*/      { 1, 4, 0,12, 0,19, 1, 0, 0, 0, 0, 1, 1},
             /*-8*/      { 4, 0, 1, 1, 1, 0, 0, 5, 0, 0,16, 1, 1},
             /*-9*/      { 1,15, 0, 0, 0, 0,14, 1, 5,16, 1, 1, 1},
             /*10*/      { 1,15,13, 1,13,14, 1, 1, 1, 1, 1, 1, 1},
@@ -60,16 +70,409 @@ public class Player : MonoBehaviour
     private int krendelCount = 0;
     private int itemCount = 0;
     private bool isWaterClear = false;
+    private float pianoTimeSpent = 0;
+
     private bool hasMiska = false;
     private bool hasKuvshin = false;
-    private bool hasSecretItem = false;
+    private bool hasRoulette = false;
+
     private int[] tumba;
     private int tumbaIndex;
-    private int tumbaItem;
+    private int[] books;
+
+    private int questId = 0;
+    private int questProgress = 0;
+    private int[] questItems;
+    private int questAmount = 9;
+
+    private bool objective1 = false;
+    private bool objective2 = false;
+
+    private IEnumerator questEnumerator;
+    private IEnumerator flowerColor;
+
+    private void flowersState(bool state)
+    {
+        StopCoroutine(flowerColor);
+        if (state)
+        {
+            flowerColor = FlowerColor(flowerGreen);
+        }
+        else
+        {
+            flowerColor = FlowerColor(flowerYellow);
+        }
+        StartCoroutine(flowerColor);
+    }
+
+    private IEnumerator FlowerColor(Color targetColor)
+    {
+        Color baseColor1 = flower1.material.color;
+        Color baseColor2 = flower2.material.color;
+        for (float f = 0; f < 1; f += Time.deltaTime)
+        {
+            flower1.material.color = Vector4.Lerp(baseColor1, targetColor, f * (2 - f));
+            flower2.material.color = Vector4.Lerp(baseColor2, targetColor, f * (2 - f));
+            yield return null;
+        }
+        flower1.material.color = targetColor;
+        flower2.material.color = targetColor;
+    }
+
+    private void changeQuest()
+    {
+        oldTask.TranslateInstantly();
+        oldQuestText.text = questText.text;
+        oldQuestHeader.text = questHeader.text;
+
+        StopCoroutine(questEnumerator);
+        questEnumerator = giveNewQuestYield();
+        StartCoroutine(questEnumerator);
+    }
+
+    private IEnumerator giveNewQuestYield()
+    {
+        yield return new WaitForSeconds(3f);
+        giveNewQuest();
+        oldTask.Translate();
+    }
+
+    private void giveNewQuest()
+    {
+        questProgress = 0;
+        int prevQuestId = questId;
+        questId = Random.Range(1, questAmount);
+        if (questId > questAmount - 3 && itemCount == 4)
+        {
+            questId = Random.Range(1, questAmount - 2);
+            if (prevQuestId == questId) questId = (questId + 1) % (questAmount - 2);
+        }
+        else
+        {
+            if (prevQuestId == questId) questId = (questId + 1) % questAmount;
+
+        }
+        if (questId == 0) questId = 1;
+        switch (questId)
+        {
+            case 1:
+                {
+                    questHeader.text = "Создание сосискомёта";
+                    questText.text = "○ Принести \"Механику аэрозолей\"";
+                    talkingCat.Say("Не хватает огневой мощи против повстанцев, нужно оружие");
+                    break;
+                }
+            case 2:
+                {
+                    questHeader.text = "Что-то интересное";
+                    questText.text = "○ Найти кейс";
+                    talkingCat.Say("В одном из моих кейсов есть интересные бумаги. Принеси их");
+                    break;
+                }
+            case 3:
+                {
+                    questHeader.text = "Книжный кот";
+                    questText.text = "○ Принести книги:" + '\n' +
+                        "\"Теория функций комплексных переменных\"" + '\n' +
+                        "\"Ядерные энергетические реакции\"" + '\n' +
+                        "\"Тайна сибирского леса\"";
+                    addItemToQuestInventory(18, 19, 20);
+                    talkingCat.Say("Человек, мне нужно больше литературы");
+                    break;
+                }
+            case 4:
+                {
+                    questHeader.text = "Подготовка к сборке";
+                    questText.text = "○ Принести рулетку и гаечный ключ";
+                    addItemToQuestInventory(13, 12);
+                    tumba[Random.Range(0, 4)] = 1;
+                    talkingCat.Say("Человек, срочно принеси мне инструменты");
+                    break;
+                }
+            case 5:
+                {
+                    questHeader.text = "Сорванная башня";
+                    questText.text = "○ Узнать координаты столицы Парижа";
+                    talkingCat.Say("Узнай, где находится Париж. Думаю, скоро он станет неПарижем...");
+                    objective1 = false;
+                    break;
+                }
+            case 6:
+                {
+                    questHeader.text = "Истинная ненависть";
+                    questText.text = "○ Принести 3 кренделя";
+                    addItemToQuestInventory(7, 7, 7);
+                    talkingCat.Say("Проверь несколько кренделей. Они не внушают доверия");
+                    break;
+                }
+            case 7:
+                {
+                    questHeader.text = "Напоить кота";
+                    questText.text = "○ Принести воды коту";
+                    addItemToInventory(3, "Пустая миска", null);
+                    talkingCat.Say("Я хочу пить, принеси воды");
+                    hasMiska = true;
+                    break;
+                }
+            case 8:
+                {
+                    questHeader.text = "Полить цветы";
+                    questText.text = "○ Полить каждый цветок в доме";
+                    addItemToInventory(5, "Пустой кувшин", null);
+                    talkingCat.Say("Цветы сегодня желтоваты, сосредоточься на этом");
+                    hasKuvshin = true;
+                    objective1 = false;
+                    objective2 = false;
+                    flowersState(false);
+                    break;
+                }
+        }
+    }
+
+    private void checkQuestProgress()
+    {
+        switch (questId)
+        {
+            case 1:
+                {
+                    if (questProgress == 0)
+                    {
+                        if (takeItemFromInventory(14))
+                        {
+                            questProgress++;
+                            questText.text = "● Принести \"Механику аэрозолей\"" + '\n' + "○ Достать гаечный ключ и металлолом";
+                            books[0] = 1;
+                            talkingCat.Say("Пикатная книженция. Неси инструменты");
+                            addItemToQuestInventory(12, 8);
+                        }
+                    }
+                    else if (questProgress == 1)
+                    {
+                        if (takeItemFromInventory(12))
+                        {
+                            takeItemFromQuestInventory(12);
+                        }
+                        if (takeItemFromInventory(8))
+                        {
+                            takeItemFromQuestInventory(8);
+                        }
+                        if (questItems[0] == 0)
+                        {
+                            questProgress++;
+                            questText.text = "● Принести \"Механику аэрозолей\"" + '\n' + "● Достать гаечный ключ и металлолом" + '\n' + "○ Зарядить пушку сосисками";
+                            talkingCat.Say("Нет патронов...");
+                        }
+                    }
+                    else
+                    {
+                        if (takeItemFromInventory(1) || takeItemFromInventory(10))
+                        {
+                            questText.text = "● Принести \"Механику аэрозолей\"" + '\n' + "● Достать гаечный ключ и металлолом" + '\n' + "● Зарядить пушку сосисками";
+                            talkingCat.Say("Теперь у оппозиции нет шансов");
+                            changeQuest();
+                        }
+                    }
+                    break;
+                }
+            case 2:
+                {
+                    if (questProgress == 0)
+                    {
+                        if (takeItemFromInventory(24))
+                        {
+                            questProgress++;
+                            objective1 = false;
+                            questText.text = "● Найти кейс" + '\n' + "○ Оплатить счета";
+                            talkingCat.Say("Чёрт! Это были счета. Оплати их");
+                        }
+                    }
+                    else if (questProgress == 1)
+                    {
+                        if (objective1)
+                        {
+                            questProgress++;
+                            questText.text = "● Найти кейс" + '\n' + "● Оплатить счета" + '\n' + "○ Принести крендель";
+                            talkingCat.Say("Как же я зол. Проверь крендели");
+                        }
+                    }
+                    else
+                    {
+                        if (takeItemFromInventory(7))
+                        {
+                            questText.text = "● Найти кейс" + '\n' + "● Оплатить счета" + '\n' + "● Принести крендель";
+                            talkingCat.Say("Проверил? Рад, что они все еще мертвы");
+                            changeQuest();
+                        }
+                    }
+                    break;
+                }
+            case 3:
+                {
+                    if (takeItemFromInventory(18))
+                    {
+                        takeItemFromQuestInventory(18);
+                        books[1] = 1;
+                    }
+                    if (takeItemFromInventory(19))
+                    {
+                        takeItemFromQuestInventory(19);
+                        books[2] = 1;
+                    }
+                    if (takeItemFromInventory(20))
+                    {
+                        takeItemFromQuestInventory(20);
+                        books[3] = 1;
+                    }
+                    if (questItems[0] == 0)
+                    {
+                        questText.text = "● Принести книги:" + '\n' +
+                            "\"Теория функций комплексных переменных\"" + '\n' +
+                            "\"Ядерные энергетические реакции\"" + '\n' +
+                            "\"Тайна сибирского леса\"";
+                        talkingCat.Say("Ты хороший раб, человек");
+                        changeQuest();
+                    }
+                    break;
+                }
+            case 4:
+                {
+                    if (questProgress == 0)
+                    {
+                        if (takeItemFromInventory(12))
+                        {
+                            takeItemFromQuestInventory(12);
+                        }
+                        if (takeItemFromInventory(13))
+                        {
+                            takeItemFromQuestInventory(13);
+                            hasRoulette = false;
+                        }
+                        if (questItems[0] == 0)
+                        {
+                            questProgress++;
+                            questText.text = "● Принести рулетку и гаечный ключ" + '\n' + "○ Принести \"Механику аэрозолей\"";
+                            talkingCat.Say("Ничего не понимаю... Сгоняй за \"Механикой аэрозолей\"");
+                        }
+                    }
+                    else
+                    {
+                        if (takeItemFromInventory(14))
+                        {
+                            books[0] = 1;
+                            questText.text = "● Принести рулетку и гаечный ключ" + '\n' + "● Принести \"Механику аэрозолей\"";
+                            talkingCat.Say("Превосходно, человек, служи мне и дальше");
+                            changeQuest();
+                        }
+                    }
+                    break;
+                }
+            case 5:
+                {
+                    if (questProgress == 0)
+                    {
+                        if (objective1)
+                        {
+                            questProgress++;
+                            questText.text = "● Узнать координаты столицы Парижа" + '\n' + "○ Принести тапок";
+                            talkingCat.Say("Отлично. Очень хочу его прихлопнуть");
+                        }
+                    }
+                    else if (questProgress == 1)
+                    {
+                        if (takeItemFromInventory(9))
+                        {
+                            questProgress++;
+                            questText.text = "● Узнать координаты столицы Парижа" + '\n' + "● Принести тапок" + '\n' + "○ Найти и принести металлолом";
+                            talkingCat.Say("Да не так! Неси металлолом");
+                        }
+                    }
+                    else
+                    {
+                        if (takeItemFromInventory(8))
+                        {
+                            questText.text = "● Узнать координаты столицы Парижа" + '\n' + "● Принести тапок" + '\n' + "● Найти и принести металлолом";
+                            talkingCat.Say("Ты принял верное решение служить мне, человек");
+                            changeQuest();
+                        }
+                    }
+                    break;
+                }
+            case 6:
+                {
+                    if (takeItemFromInventory(7))
+                    {
+                        takeItemFromQuestInventory(7);
+                    }
+                    if (takeItemFromInventory(7))
+                    {
+                        takeItemFromQuestInventory(7);
+                    }
+                    if (takeItemFromInventory(7))
+                    {
+                        takeItemFromQuestInventory(7);
+                    }
+                    if (questItems[0] == 0)
+                    {
+                        questText.text = "● Принести 3 кренделя";
+                        talkingCat.Say("Хмм... Вроде ничего подозрительного");
+                        changeQuest();
+                    }
+                    break;
+                }
+            case 7: // Напоить кота
+                {
+                    if (takeItemFromInventory(4))
+                    {
+                        hasMiska = false;
+                        questText.text = "● Принести воды коту";
+                        talkingCat.Say("Успех, я пью за себя!");
+                        changeQuest();
+                    }
+                    else if (takeItemFromInventory(17))
+                    {
+                        addItemToInventory(3, null, null);
+                        talkingCat.Say("Что за кошачью мочу ты мне подсунул?");
+                    }
+                    break;
+                }
+            case 8: // Полить цветы
+                {
+                    if (questProgress == 0)
+                    {
+                        if (objective1 && objective2)
+                        {
+                            hasKuvshin = false;
+                            takeItemFromInventory(5);
+                            takeItemFromInventory(6);
+                            objective1 = false;
+                            questProgress++;
+                            questText.text = "● Полить каждый цветок в доме" + '\n' + "○ Играть на пианино, пока не позеленеют цветы";
+                            talkingCat.Say("Поиграй на пианино, пока они не позеленеют");
+                        }
+                    }
+                    else
+                    {
+                        if (objective1)
+                        {
+                            talkingCat.Say("Хоть что-то тебе можно доверить");
+                            changeQuest();
+                        }
+                    }
+                    break;
+                }
+        }
+    }
 
     private void UpdateTimer()
     {
         timeSpent += Time.deltaTime;
+        if (isPlayingPiano) pianoTimeSpent += Time.deltaTime;
+        if (questId == questAmount - 1 && questProgress == 1 && pianoTimeSpent >= 10 && objective1 == false)
+        {
+            objective1 = true;
+            flowersState(true);
+            questText.text = "● Полить каждый цветок в доме" + '\n' + "● Играть на пианино, пока не позеленеют цветы";
+        }
         millisecondsSpent += Time.deltaTime;
         if (millisecondsSpent >= 1)
         {
@@ -90,10 +493,18 @@ public class Player : MonoBehaviour
         interactionText_Object.SetActive(false);
         itemsId = new int[4];
         tumba = new int[] { 0, 0, 0, 0 };
-        tumbaItem = 13;
+        books = new int[] { 1, 1, 1, 1 };
+
+        oldTask.TranslateInstantly();
+        oldQuestHeader.text = "Поговорить с котом";
+        oldQuestText.text = "○ Найти кота в ванной и поговорить с ним.";
+        questItems = new int[] { 0, 0, 0 };
+
+        questEnumerator = giveNewQuestYield();
+        flowerColor = FlowerColor(flowerGreen);
     }
 
-    public static IEnumerator ColorChanger(Light component, Color baseColor, Color targetColor, float duration)
+    public IEnumerator ColorChanger(Light component, Color baseColor, Color targetColor, float duration)
     {
         float durationInversed = 1f / duration;
         for (float f = 0; f < duration; f += Time.deltaTime)
@@ -168,6 +579,32 @@ public class Player : MonoBehaviour
         return false;
     }
 
+    private void addItemToQuestInventory(int id1, int id2 = 0, int id3 = 0)
+    {
+        questItems[0] = id1;
+        questItems[1] = id2;
+        questItems[2] = id3;
+    }
+
+    private void takeItemFromQuestInventory(int id)
+    {
+        if (questItems[0] == id)
+        {
+            questItems[0] = questItems[1];
+            questItems[1] = questItems[2];
+            questItems[2] = 0;
+        }
+        else if (questItems[1] == id)
+        {
+            questItems[1] = questItems[2];
+            questItems[2] = 0;
+        }
+        else if (questItems[2] == id)
+        {
+            questItems[3] = 0;
+        }
+    }
+
     private void clearInventory()
     {
         itemsId[0] = 0;
@@ -182,7 +619,9 @@ public class Player : MonoBehaviour
 
         if (hasMiska) addItemToInventory(3, null, null);
         if (hasKuvshin) addItemToInventory(5, null, null);
-        if (hasSecretItem) addItemToInventory(tumbaItem, null, null);
+        if (hasRoulette) addItemToInventory(13, null, null);
+
+        for (int i = 0; i < 4; ++i) books[i] = 1;
     }
 
     private void stopPiano()
@@ -191,6 +630,7 @@ public class Player : MonoBehaviour
         {
             chopin.Stop();
             isPlayingPiano = false;
+            pianoTimeSpent = 0f;
         }
     }
 
@@ -234,14 +674,21 @@ public class Player : MonoBehaviour
                         addItemToInventory(3, "Пустая миска", "Цветочек доволен :)");
                     }
                     else notSystem.Notify(Resources.Load<Sprite>("Items/" + 21), "Чтобы полить цветок, нужна вода");
+                    if (questId == questAmount - 1 && questProgress == 0)
+                    {
+                        if (playerPosition == new Vector2Int(0, 2)) objective1 = true;
+                        else objective2 = true;
+                        if (objective1 && objective2)
+                            questText.text = "● Полить каждый цветок в доме";
+                    }
                     break;
                 }
             case 5:
                 {
                     if (tumba[tumbaIndex] > 0)
                     {
-                        addItemToInventory(tumbaItem, "Спрятанный предмет", null);
-                        hasSecretItem = true;
+                        addItemToInventory(13, "Рулетка", null);
+                        hasRoulette = true;
                         tumba[tumbaIndex]--;
                     }
                     else notSystem.Notify(Resources.Load<Sprite>("Items/" + 22), "Пусто...");
@@ -295,11 +742,31 @@ public class Player : MonoBehaviour
                                 addItemToInventory(20, "\"Тайна сибирского леса\"");
                                 break;
                             }
+                        case 4:
+                            {
+                                notSystem.Notify(Resources.Load<Sprite>("Items/" + 22), "Пусто...");
+                                break;
+                            }
                     }
+                    if (bookType != 4) books[bookType] = 0;
                     break;
                 }
             case 10:
                 {
+                    switch (questId)
+                    {
+                        case 0: // Пришествие
+                            {
+                                giveNewQuest();
+                                oldTask.Translate();
+                                break;
+                            }
+                        default:
+                            {
+                                checkQuestProgress();
+                                break;
+                            }
+                    }
                     break;
                 }
             case 11:
@@ -338,7 +805,7 @@ public class Player : MonoBehaviour
                         if (!lampLight.enabled) lampLight.enabled = true;
                         StartCoroutine(ColorChanger(lampLight, Vector4.zero, someColor, 5f));
                         lampLight.intensity = 3;
-                        lampLight.spotAngle = 160;
+                        lampLight.spotAngle = 120;
                         lampLight.cookie = cookie;
                     }
                     krendelCount++;
@@ -353,6 +820,11 @@ public class Player : MonoBehaviour
             case 14:
                 {
                     notSystem.Notify(Resources.Load<Sprite>("Items/" + 23), "48°50′ широты и 2°20′ долготы");
+                    if (questId == 5 && questProgress == 0)
+                    {
+                        objective1 = true;
+                        questText.text = "● Узнать координаты столицы Парижа";
+                    }
                     break;
                 }
             case 15:
@@ -372,11 +844,29 @@ public class Player : MonoBehaviour
                     if (itemsId[0] > 0)
                     {
                         clearInventory();
-                        if (itemCount==0) notSystem.Notify(newIcon, "Вы выбросили все предметы. Что же вы скажете коту?");
+                        if (itemCount == 0) notSystem.Notify(newIcon, "Вы выбросили все предметы. Что же вы скажете коту?");
                         else notSystem.Notify(newIcon, "Вы не можете выбросить важные предметы");
                     }
                     else
                         notSystem.Notify(newIcon, "Ваши карманы пусты");
+                    break;
+                }
+            case 18:
+                {
+                    addItemToInventory(24, "Документы");
+                    if (questId == 2 && questProgress == 0) questText.text = "● Найти кейс";
+                    break;
+                }
+            case 19:
+                {
+                    if (questId == 2 && questProgress == 1 && objective1 == false)
+                    {
+                        objective1 = true;
+                        notSystem.Notify(Resources.Load<Sprite>("Items/" + 26), "Счета успешно оплачены");
+                        questText.text = "● Найти кейс" + '\n' + "● Оплатить счета";
+                    }
+                    else
+                        notSystem.Notify(Resources.Load<Sprite>("Items/" + 25), "Все счета уже оплачены");
                     break;
                 }
             default:
@@ -515,7 +1005,7 @@ public class Player : MonoBehaviour
                                 else if (playerPosition == new Vector2(5, 8) || playerPosition == new Vector2(6, 9))
                                     tumbaIndex = 2;
                                 else tumbaIndex = 3;
-                                interactionText_Text.text = "искать предметы";
+                                interactionText_Text.text = "искать рулетку";
                                 break;
                             }
                         case 6:
@@ -542,30 +1032,43 @@ public class Player : MonoBehaviour
                             {
                                 interactionText_Object.SetActive(true);
                                 bookType = Random.Range(0, 4);
-                                switch (bookType)
+                                int bookCnt = 0;
+                                while (books[bookType] == 0 && bookCnt < 4)
                                 {
-                                    case 0:
-                                        {
-                                            interactionText_Text.text = "взять книгу \"Механика аэрозолей\"";
-                                            break;
-                                        }
-                                    case 1:
-                                        {
-                                            interactionText_Text.text = "взять книгу \"Теория функций комплексных переменных\"";
-                                            break;
-                                        }
-                                    case 2:
-                                        {
-                                            interactionText_Text.text = "взять книгу \"Ядерные энергетические реакции\"";
-                                            break;
-                                        }
-                                    case 3:
-                                        {
-                                            interactionText_Text.text = "взять книгу \"Тайна сибирского леса\"";
-                                            break;
-                                        }
+                                    bookType = (bookType + 1) % 4;
+                                    bookCnt++;
                                 }
-
+                                if (bookCnt < 4)
+                                {
+                                    switch (bookType)
+                                    {
+                                        case 0:
+                                            {
+                                                interactionText_Text.text = "взять книгу \"Механика аэрозолей\"";
+                                                break;
+                                            }
+                                        case 1:
+                                            {
+                                                interactionText_Text.text = "взять книгу \"Теория функций комплексных переменных\"";
+                                                break;
+                                            }
+                                        case 2:
+                                            {
+                                                interactionText_Text.text = "взять книгу \"Ядерные энергетические реакции\"";
+                                                break;
+                                            }
+                                        case 3:
+                                            {
+                                                interactionText_Text.text = "взять книгу \"Тайна сибирского леса\"";
+                                                break;
+                                            }
+                                    }
+                                }
+                                else
+                                {
+                                    bookType = 4;
+                                    interactionText_Text.text = "Искать что-либо на полке";
+                                }
                                 break;
                             }
                         case 10:
@@ -617,6 +1120,18 @@ public class Player : MonoBehaviour
                             {
                                 interactionText_Object.SetActive(true);
                                 interactionText_Text.text = "выбросить всё";
+                                break;
+                            }
+                        case 18:
+                            {
+                                interactionText_Object.SetActive(true);
+                                interactionText_Text.text = "искать документы";
+                                break;
+                            }
+                        case 19:
+                            {
+                                interactionText_Object.SetActive(true);
+                                interactionText_Text.text = "Оплатить счета";
                                 break;
                             }
                         default:

@@ -105,6 +105,20 @@ public class UiMovement : MonoBehaviour
         moved = !moved;
     }
 
+    public void TranslateInstantly()
+    {
+        StopCoroutine(activeMovement);
+        if (!moved)
+        {
+            GetComponent<RectTransform>().anchoredPosition = newPosition;
+        }
+        else
+        {
+            GetComponent<RectTransform>().anchoredPosition = defaultPosition;
+        }
+        moved = !moved;
+    }
+
     protected IEnumerator SmoothMove(Vector2 startPosition, Vector2 endPosition, movingFunc func)
     {
         for (float f = 1; f > 0; f -= 0.03125f)

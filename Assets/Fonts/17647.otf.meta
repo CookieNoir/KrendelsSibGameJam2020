@@ -1,0 +1,22 @@
+fileFormatVersion: 2
+guid: 0ae0aa106be21324190d0ef0e3c2e550
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: WC Mano Negra Bta(RUS BY LYAJKA
+  fontNames:
+  - WC Mano Negra Bta(RUS BY LYAJKA
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
