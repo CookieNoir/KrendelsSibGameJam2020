@@ -62,12 +62,15 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\EndGame.cs" />
     <Compile Include="Assets\FollowingCamera.cs" />
+    <Compile Include="Assets\MainMenu.cs" />
     <Compile Include="Assets\NotificationSystem.cs" />
     <Compile Include="Assets\PauseMenu.cs" />
     <Compile Include="Assets\Player.cs" />
     <Compile Include="Assets\TalkingCat.cs" />
     <Compile Include="Assets\UiMovement.cs" />
+    <None Include="Assets\Supercyan Character Pack Free Sample\Shaders\FreeCelShader.shader" />
     <None Include="Assets\Materials\CanvasShader.shader" />
     <None Include="Assets\Materials\Cloud Shader 2.shader" />
     <Reference Include="UnityEngine">

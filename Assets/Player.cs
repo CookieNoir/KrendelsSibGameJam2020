@@ -4,6 +4,16 @@ using UnityEngine.UI;
 
 public class Player : MonoBehaviour
 {
+    private const float MAX_SWIPE_TIME = 0.5f;
+    private const float MIN_SWIPE_DISTANCE = 0.17f;
+    private bool swipedRight = false;
+    private bool swipedLeft = false;
+    private bool swipedUp = false;
+    private bool swipedDown = false;
+
+    private Vector2 startPos;
+    private float startTime;
+
     public float speed = 3f;
 
     [HideInInspector]
@@ -39,6 +49,9 @@ public class Player : MonoBehaviour
     public Color flowerYellow;
     public Text scoreText;
     public Text starvingText;
+    public GameObject GameOverMenuUI;
+    public GameObject PlayerModel;
+    public GameObject takeIcon;
 
     private int eventId;
     private bool isUsed = false;
@@ -86,6 +99,7 @@ public class Player : MonoBehaviour
     private int[] books;
 
     private int questId = 0;
+    private int prevQuestId = -1;
     private int questProgress = 0;
     private int[] questItems;
     private int questAmount = 10;
@@ -97,12 +111,32 @@ public class Player : MonoBehaviour
 
     private IEnumerator questEnumerator;
     private IEnumerator flowerColor;
+    private IEnumerator changeVolume;
 
     private IEnumerator ReturnNormalSound()
     {
         mainSound.Stop();
         yield return new WaitForSecondsRealtime(71f);
         mainSound.Play();
+    }
+
+    private void changeMainSoundVolume(bool hush)
+    {
+        StopCoroutine(changeVolume);
+        if (hush) changeVolume = ChangeVolume(0);
+        else changeVolume = ChangeVolume(1);
+        StartCoroutine(changeVolume);
+    }
+
+    private IEnumerator ChangeVolume(float target)
+    {
+        float baseVolume = mainSound.volume;
+        for (float f = 0; f < 1; f += Time.deltaTime)
+        {
+            mainSound.volume = Mathf.Lerp(baseVolume, target, f * (2 - f));
+            yield return null;
+        }
+        mainSound.volume = target;
     }
 
     private void FlowersState(bool state)
@@ -142,6 +176,8 @@ public class Player : MonoBehaviour
     private void ChangeQuest(int amount)
     {
         UpdateScore(amount);
+        prevQuestId = questId;
+        questId = -1;
         oldTask.TranslateInstantly();
         oldQuestText.text = questText.text;
         oldQuestHeader.text = questHeader.text;
@@ -161,7 +197,6 @@ public class Player : MonoBehaviour
     private void giveNewQuest()
     {
         questProgress = 0;
-        int prevQuestId = questId;
         questId = Random.Range(1, questAmount);
         if (questId > questAmount - 3 && itemCount == 4)
         {
@@ -530,7 +565,8 @@ public class Player : MonoBehaviour
 
     private void GameOver()
     {
-        Debug.Log("GO");
+        Time.timeScale = 0f;
+        GameOverMenuUI.SetActive(true);
     }
 
     private void UpdateTimer()
@@ -584,6 +620,8 @@ public class Player : MonoBehaviour
 
         questEnumerator = GiveNewQuestYield();
         flowerColor = FlowerColor(flowerGreen);
+        changeVolume = ChangeVolume(1);
+        Time.timeScale = 1f;
     }
 
     public IEnumerator ColorChanger(Light component, Color baseColor, Color targetColor, float duration)
@@ -711,12 +749,13 @@ public class Player : MonoBehaviour
         if (isPlayingPiano)
         {
             chopin.Stop();
+            changeMainSoundVolume(false);
             isPlayingPiano = false;
             pianoTimeSpent = 0f;
         }
     }
 
-    private void DoAction()
+    public void DoAction()
     {
         switch (eventId)
         {
@@ -837,6 +876,10 @@ public class Player : MonoBehaviour
                 {
                     switch (questId)
                     {
+                        case -1: // Квест сдан
+                            {
+                                break;
+                            }
                         case 0: // Пришествие
                             {
                                 giveNewQuest();
@@ -913,6 +956,7 @@ public class Player : MonoBehaviour
             case 15:
                 {
                     chopin.Play();
+                    changeMainSoundVolume(true);
                     isPlayingPiano = true;
                     break;
                 }
@@ -959,14 +1003,72 @@ public class Player : MonoBehaviour
         }
         interactionText_Object.SetActive(false);
         isUsed = true;
+        takeIcon.SetActive(false);
+    }
+
+    private void MakeTouch()
+    {
+        swipedRight = false;
+        swipedLeft = false;
+        swipedUp = false;
+        swipedDown = false;
+
+        if (Input.touches.Length > 0)
+        {
+            Touch t = Input.GetTouch(0);
+            if (t.phase == TouchPhase.Began)
+            {
+                startPos = new Vector2(t.position.x / Screen.width, t.position.y / Screen.width);
+                startTime = Time.time;
+            }
+            if (t.phase == TouchPhase.Ended)
+            {
+                if (Time.time - startTime > MAX_SWIPE_TIME) // press too long
+                    return;
+
+                Vector2 endPos = new Vector2(t.position.x / Screen.width, t.position.y / Screen.width);
+
+                Vector2 swipe = new Vector2(endPos.x - startPos.x, endPos.y - startPos.y);
+
+                if (swipe.magnitude < MIN_SWIPE_DISTANCE) // Too short swipe
+                    return;
+
+                if (Mathf.Abs(swipe.x) > Mathf.Abs(swipe.y))
+                { // Horizontal swipe
+                    if (swipe.x > 0)
+                    {
+                        swipedRight = true;
+                    }
+                    else
+                    {
+                        swipedLeft = true;
+                    }
+                }
+                else
+                { // Vertical swipe
+                    if (swipe.y > 0)
+                    {
+                        swipedUp = true;
+                    }
+                    else
+                    {
+                        swipedDown = true;
+                    }
+                }
+            }
+        }
     }
 
     private void Update()
     {
+        MakeTouch();
+
         if (!isMoving)
         {
-            if (Input.GetKey(KeyCode.W))
+            if (swipedUp || Input.GetKey(KeyCode.W))
             {
+
+                PlayerModel.transform.forward = new Vector3(-1f, 0f, 0f);
                 pointer = new Vector2Int(playerPosition.x, playerPosition.y);
                 while (pointer.x > 0 && movementMatrix[pointer.x - 1, pointer.y] != 1)
                 {
@@ -976,7 +1078,7 @@ public class Player : MonoBehaviour
                 playerPosition = pointer;
                 if (playerPosition != playerPositionPrev)
                 {
-                    isUsed = false; interactionText_Object.SetActive(false);
+                    isUsed = false; interactionText_Object.SetActive(false); takeIcon.SetActive(false);
                     stopPiano();
 
                     destination = new Vector3(playerPosition.x + 0.5f, 0, playerPosition.y + 0.5f);
@@ -984,8 +1086,9 @@ public class Player : MonoBehaviour
                     isMoving = true;
                 }
             }
-            else if (Input.GetKey(KeyCode.S))
+            else if (swipedDown || Input.GetKey(KeyCode.S))
             {
+                PlayerModel.transform.forward = new Vector3(1f, 0f, 0f);
                 pointer = new Vector2Int(playerPosition.x, playerPosition.y);
                 while (pointer.x < borders.x && movementMatrix[pointer.x + 1, pointer.y] != 1)
                 {
@@ -995,7 +1098,7 @@ public class Player : MonoBehaviour
                 playerPosition = pointer;
                 if (playerPosition != playerPositionPrev)
                 {
-                    isUsed = false; interactionText_Object.SetActive(false);
+                    isUsed = false; interactionText_Object.SetActive(false); takeIcon.SetActive(false);
                     stopPiano();
 
                     destination = new Vector3(playerPosition.x + 0.5f, 0, playerPosition.y + 0.5f);
@@ -1003,8 +1106,9 @@ public class Player : MonoBehaviour
                     isMoving = true;
                 }
             }
-            else if (Input.GetKey(KeyCode.A))
+            else if (swipedLeft || Input.GetKey(KeyCode.A))
             {
+                PlayerModel.transform.forward = new Vector3(0f, 0f, -1f);
                 pointer = new Vector2Int(playerPosition.x, playerPosition.y);
                 if (movementMatrix[pointer.x, pointer.y] == 2) pointer.y--;
                 while (pointer.y > 0 && movementMatrix[pointer.x, pointer.y - 1] != 1 && movementMatrix[pointer.x, pointer.y] != 2)
@@ -1015,7 +1119,7 @@ public class Player : MonoBehaviour
                 playerPosition = pointer;
                 if (playerPosition != playerPositionPrev)
                 {
-                    isUsed = false; interactionText_Object.SetActive(false);
+                    isUsed = false; interactionText_Object.SetActive(false); takeIcon.SetActive(false);
                     stopPiano();
 
                     destination = new Vector3(playerPosition.x + 0.5f, 0, playerPosition.y + 0.5f);
@@ -1023,8 +1127,9 @@ public class Player : MonoBehaviour
                     isMoving = true;
                 }
             }
-            else if (Input.GetKey(KeyCode.D))
+            else if (swipedRight || Input.GetKey(KeyCode.D))
             {
+                PlayerModel.transform.forward = new Vector3(0f, 0f, 1f);
                 pointer = new Vector2Int(playerPosition.x, playerPosition.y);
                 if (movementMatrix[pointer.x, pointer.y] == 2) pointer.y++;
                 while (pointer.y < borders.y && movementMatrix[pointer.x, pointer.y + 1] != 1 && movementMatrix[pointer.x, pointer.y] != 2)
@@ -1035,7 +1140,7 @@ public class Player : MonoBehaviour
                 playerPosition = pointer;
                 if (playerPosition != playerPositionPrev)
                 {
-                    isUsed = false; interactionText_Object.SetActive(false);
+                    isUsed = false; interactionText_Object.SetActive(false); takeIcon.SetActive(false);
                     stopPiano();
 
                     destination = new Vector3(playerPosition.x + 0.5f, 0, playerPosition.y + 0.5f);
@@ -1058,6 +1163,7 @@ public class Player : MonoBehaviour
 
                 eventId = movementMatrix[playerPosition.x, playerPosition.y];
                 if (!isUsed)
+                {
                     switch (eventId)
                     {
                         case 2:
@@ -1222,7 +1328,8 @@ public class Player : MonoBehaviour
                                 break;
                             }
                     }
-
+                    takeIcon.SetActive(true);
+                }
                 isMoving = false;
             }
         }
